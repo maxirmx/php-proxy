@@ -1,0 +1,17 @@
+<html>
+    <head>
+        <title>Proxy test</title>
+
+        <h1>Direct POST request to test endpoint</h1>
+        <form action="test-endpoint.php?p1=v1&p2=v2&p3=v3" method="POST" enctype="application/x-www-form-urlencoded">
+            <textarea name="info">123456</textarea><br>
+            <input type="submit">
+        </form>
+
+        <h1>POST request through proxy to test endpoint</h1>
+        <form action="proxy.php?endpoint=http://p.samsonov.net/php-proxy/test-endpoint.php&p1=v1&p2=v2&p3=v3&p4=getckc" method="POST" enctype="application/x-www-form-urlencoded">
+            <textarea name="info">123456</textarea><br>
+            <input type="submit">
+        </form>
+    </body>
+</html>

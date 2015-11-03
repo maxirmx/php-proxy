@@ -74,13 +74,15 @@ function getRequestHeaders()
  * $url     - The endpoint URL
  * $method  - The HTTP method
  * $headers - An array with the headers that should be sent with the request
- * $data    - The GET or POST data that should be included with the request
+ *  maxirmx
+ * $data    - The GET data that should be included with the request
+ * $data2   - The POST data that should be included with the request
  *
  * Returns and array with the request & response headers and response body
  *
  * Throws an exception if a CURL error occurs
  */
-function sendProxyRequest($url, $method, $headers, $data = array())
+function sendProxyRequest($url, $method, $headers, $data = array(), $data2 = array())
 {
 
     // Transform the headers array from the key => value format in the one CURL expects
@@ -92,25 +94,23 @@ function sendProxyRequest($url, $method, $headers, $data = array())
     // Initialize the curl request
     $ch = curl_init();
 
-    // If this is a GET request, append the data to the URL
-    if ($method === 'GET') {
-        // Add the ? symbol at the end of the URL if the URL doesn't contain any other parameters
-        if (strpos($url, '?') === false) {
-            $url .= '?';
-        } else {
-            $url .= '&';
-        }
-
-        // Add the get parameters
-        foreach($data as $key => $value) {
-            $url .= rawurlencode($key) . '=' . rawurlencode($value) . '&';
-        }
-
-        // Trim the trailing extra & from the url
-        $url = rtrim($url, '&');
+    // Append the url parameters to the endpoint URL
+    // Add the ? symbol at the end of the URL if the URL doesn't contain any other parameters
+    if (strpos($url, '?') === false) {
+        $url .= '?';
+    } else {
+        $url .= '&';
     }
 
-	// Set the endpoint URL
+    // Add the get parameters
+    foreach($data as $key => $value) {
+        $url .= rawurlencode($key) . '=' . rawurlencode($value) . '&';
+    }
+
+    // Trim the trailing extra & from the url
+    $url = rtrim($url, '&');
+
+    // Set the endpoint URL
     curl_setopt($ch, CURLOPT_URL, $url);
 
     // Forward the specified headers
@@ -135,7 +135,7 @@ function sendProxyRequest($url, $method, $headers, $data = array())
     // If this is a POST request, include the post fields with the request
     if ($method === 'POST') {
         curl_setopt($ch, CURLOPT_POST, 1);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $data2);
     }
 
     // Execute the CURL request
@@ -204,9 +204,6 @@ if (!in_array($requestMethod, array('GET', 'POST'))) {
     die();
 }
 
-// Get the endpoint URL
-$url = $_GET['endpoint'] ? $_GET['endpoint'] : $_POST['endpoint'];
-
 // If the URL is empty or is invalid, return the appropriate response
 $isURLEmpty = empty($url);
 $isURLValid = filter_var($url, FILTER_VALIDATE_URL) !== false;
@@ -236,33 +233,37 @@ $requestHeders['X-Forwarded-For'] = isset($requestHeders['X-Forwarded-For']) ? $
 // Initialize the data that should be forwarded
 $data = array();
 
-if ($requestMethod === 'GET') {
-    // Get the original parameters sent via GET
-    $data = $_GET;
+// maxirmx
+// $data always contains $_GET parameters
+// $data2 contains post parameters if request method is POST
+$data2 = array();
 
-    // Unset the parameters that are used internally by the proxy
-    unset($data['endpoint']);
+// Get the original parameters sent via GET
+$data = $_GET;
 
-} elseif ($requestMethod === 'POST') {
+// Unset the parameters that are used internally by the proxy
+unset($data['endpoint']);
+
+if ($requestMethod === 'POST') {
     // If this is a multipart/form-data request, just use the parsed data
     // (PHP insists to parse this and it doesn't offer access to the raw POST data)
     if (preg_match('/^multipart\/form\-data/', $requestHeders['Content-Type'])) {
-        $data = $_POST;
+        $data2 = $_POST;
 
         // Set the correct content type (override the previous one)
         $requestHeders['Content-Type'] = 'multipart/form-data';
 
         // Unset the parameters that are used internally by the proxy
-        unset($data['endpoint']);
+        unset($data2['endpoint']);
     } else {
         // Use the raw POST data and keep the original content type
-        $data = file_get_contents('php://input');
+        $data2 = file_get_contents('php://input');
     }
 }
 
 try {
     // Proxy the request to the specified endpoint
-    $result = sendProxyRequest($url, $requestMethod, $requestHeders, $data);
+    $result = sendProxyRequest($url, $requestMethod, $requestHeders, $data, $data2);
 
 } catch (Exception $ex) {
     // Return a 502 Bad Gateway and exit
